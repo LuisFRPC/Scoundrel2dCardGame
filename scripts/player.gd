@@ -16,9 +16,9 @@ var current_armor: PlayingCard
 var current_health: int
 # The last card the armor was used against defended
 var last_defended: int
-
 # The number of monsters defeated
 var n_monsters_defended: int
+var blinking_health_tween: Tween
 # Signal that goes off when the Player dies (current_heath <= 0)
 signal player_death
 signal monster_defeated(monster_number: int)
@@ -54,7 +54,6 @@ func take_damage(monster_card: PlayingCard):
 	else:
 		emit_signal("monster_defeated", full_card_damage)
 	set_health_ui(current_health)
-	emit_signal("card_finished_action")
 
 func calculate_damage(card: PlayingCard) -> int:
 	# Determines if current armor will be used (effective_armor)
@@ -120,15 +119,50 @@ func heal(card: PlayingCard):
 	emit_signal("card_finished_action")
 
 func set_health_ui(new_health: int):
-	hero_blink_bar.visible = false
 	hero_blink_bar.value = new_health
-	var tween = create_tween()
+	var tween = get_tree().create_tween()
 	tween.tween_property(hero_health_bar, "value", new_health, 1).set_trans(Tween.TRANS_SINE).set_delay(0)
 	await tween.finished
-	hero_blink_bar.visible = true
 
-func blink_preview_health(card: PlayingCard):
-	var tween = create_tween()
-	tween.set_loops()
-	tween.tween_property(hero_health_bar, "tint_progress", Color(1,1,1,0), 1).set_delay(0)
-	tween.tween_property(hero_health_bar, "tint_progress", Color(1,1,1,1), 1).set_delay(0)
+func predict_card_effect(card_data: PlayingCard):
+	print("9.1 - Predicting")
+	var health_variance = 0
+	if card_data.card.suit == Card.Suits.CLUBS or card_data.card.suit == Card.Suits.SPADES:
+		health_variance -= calculate_damage(card_data)
+	elif card_data.card.suit == Card.Suits.HEARTS:
+		health_variance += card_data.card.number
+	else:
+		return
+	start_health_blink_preview(health_variance)
+
+func start_health_blink_preview(health_variance: int):
+	if blinking_health_tween:
+		blinking_health_tween.kill()
+
+	hero_blink_bar.visible = true
+	hero_blink_bar.value = current_health + health_variance
+	print("9.2 - Making tween")
+	blinking_health_tween = get_tree().create_tween()
+	blinking_health_tween.set_loops()
+	blinking_health_tween.tween_property(hero_health_bar, "tint_progress", Color(1,1,1,0), 0.5).set_delay(0)
+	blinking_health_tween.tween_property(hero_health_bar, "tint_progress", Color(1,1,1,1), 0.5).set_delay(0)
+	print("blinking")
+
+func stop_card_prediction(card_data: PlayingCard):
+	print("5.1 - Stopping blinking")
+	stop_health_blink_preview()
+
+func stop_health_blink_preview():
+	if !blinking_health_tween:
+		return
+	blinking_health_tween.kill()
+	blinking_health_tween = null
+	print("5.2 - Stop blink tween")
+	hero_health_bar.tint_progress = Color(1,1,1,1)
+	#var tween = get_tree().create_tween()
+	#tween.tween_property(hero_health_bar, "tint_progress", Color(1,1,1,1), 0.2)
+	#await tween.finished
+	
+	hero_blink_bar.value = 0
+	hero_blink_bar.visible = false
+	print("stop blink")

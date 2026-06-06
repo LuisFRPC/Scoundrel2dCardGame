@@ -1,4 +1,4 @@
-class_name RoomManager
+class_name GameManager
 extends Node
 
 @onready var next_button: AdvanceButton = $Next
@@ -7,25 +7,16 @@ extends Node
 @onready var deck: PlayingDeck = $Deck
 @onready var discard_pile: Node = $DiscardPile
 @onready var discard_pile_pos: Marker2D = $DiscardPile/DiscardPilePosition
-
-
-signal player_took_damage(card: PlayingCard)
-signal player_healed(card: PlayingCard)
-signal player_added_armor(card: PlayingCard)
+@onready var player: Player = $Player
 
 @export var room_size: int
 @export var card_scene: PackedScene
 # The top card of the discard pile
 var current_discard: PlayingCard 
-var selected_card_pointer: int = -1
-
-func _process(delta: float) -> void:
-	if Input.is_action_just_pressed("a_key_left_card"):
-		highlight_selected_card(-1)
-	elif Input.is_action_just_pressed("d_key_left_card"):
-		highlight_selected_card(+1)
 
 func start_game():
+	# Starts Player
+	player.ready_player()
 	generate_new_room()
 	next_button.deactivate()
 	reroll_button.activate()
@@ -49,21 +40,31 @@ func generate_new_room():
 		var new_card = card_scene.instantiate()
 		new_card.card_used.connect(use_card)
 		current_room.add_card_to_room(new_card)
-		new_card.start(cards[i], i+1)
+		new_card.start(cards[i])
+
+func select_x_card(card_data: PlayingCard):
+	print("9 - Select card (Game)")
+	player.predict_card_effect(card_data)
+
+func cancel_x_card(card_data: PlayingCard):
+	print("5 - Cancel card (Game)")
+	player.stop_card_prediction(card_data)
 
 func use_card(card: PlayingCard):
 	current_room.remove_card(card)
 	
 	if card.card.suit == Card.Suits.CLUBS or card.card.suit == Card.Suits.SPADES:
-		emit_signal("player_took_damage", card)
+		player.take_damage(card)
 		
 	elif card.card.suit == Card.Suits.HEARTS:
-		emit_signal("player_healed", card)
+		player.heal(card)
 		
 	elif card.card.suit == Card.Suits.DIAMONDS:
-		emit_signal("player_added_armor", card)
-
-func try_generate_new_room():
+		player.add_new_armor(card)
+	
+	if player.current_health <= 0:
+		return
+	
 	if needs_new_room():
 		generate_new_room()
 		reroll_button.activate()
@@ -101,10 +102,3 @@ func discard_card(card: PlayingCard):
 func discard_cards(cards: Array[PlayingCard]):
 	for card in cards:
 		discard_card(card)
-
-func highlight_selected_card(increment: int):
-	var selected_card = current_room.get_card_in_filled_slot(selected_card_pointer)
-	if selected_card != null:
-		selected_card.highlight_off()
-	selected_card_pointer = clamp(selected_card_pointer + increment, 0, current_room.n_of_cards_in_room() - 1) 
-	current_room.get_card_in_filled_slot(selected_card_pointer).highlight_on()

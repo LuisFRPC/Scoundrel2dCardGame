@@ -40,6 +40,7 @@ texture = ExtResource("3_mdl7e")
 visible = false
 
 [node name="HeroBlinkBar" type="TextureProgressBar" parent="CanvasLayer" unique_id=1528132694]
+visible = false
 texture_filter = 1
 anchors_preset = 7
 anchor_left = 0.5

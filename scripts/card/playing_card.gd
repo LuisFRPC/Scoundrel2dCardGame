@@ -11,36 +11,41 @@ extends Area2D
 # The Card resourse for this card
 var card: Card
 # If this card is being selected by the mouse
-var selected: bool
+var selected: bool = false
 # If the card in in the game or in the discard pile
-var in_game: bool
+var in_game: bool = false
+var mouse_in_card: bool = false
 
 signal card_used(card: PlayingCard)
+signal card_selected
+signal card_canceled
 
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	animation_tree.get("parameters/playback").travel("highlight")
-	selected = false
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	if !in_game:
 		return
 	
-	if Input.is_action_just_pressed("select_card") and selected:
+	if Input.is_action_just_pressed("space_bar") and selected:
+		play_card()
+	elif Input.is_action_just_pressed("left_button") and selected and mouse_in_card:
 		play_card()
 
 func play_card():
 	# If the player clicked on the card, it will perform its action
 	highlight.visible = false
 	in_game = false
+	mouse_in_card = false
 	card_visuals.clear_visual()
 	emit_signal("card_used", self)
 
 # The starting function for the Card
 # This function must be called by any sprit that creates PlayingCards
-func start(p_card: Card, p_position_in_room: int):
+func start(p_card: Card):
 	card = p_card
 	in_game = true
 	
@@ -53,7 +58,7 @@ func set_card_sprite():
 	# Calculating the starting position on the AtlasTexture for this specific Card
 	var sprite_position = Vector2(0,0)
 	sprite_position.x = (card_size.x + 1) * (card.number + card.face)
-	sprite_position.y = (card_size.y + 1) * (card.suit -1)
+	sprite_position.y = (card_size.y + 1) * (card.suit - 1)
 	# Enabling and setting the region for the sprite
 	sprite_2d.region_enabled = true
 	sprite_2d.region_rect = Rect2(sprite_position, card_size)
@@ -68,26 +73,37 @@ func get_numerical_value():
 # Method called when the mouse enters the Collider2D of the card
 # Linked to the _on_mouse_entered signal 
 func _on_mouse_entered() -> void:
+	mouse_in_card = true
 	if in_game:
-		highlight.visible = true
-	selected = true
+		print("#################")
+		select_card()
 
 # Method called when the mouse exits the Collider2D of the card
 # Linked to the _on_mouse_exited signal 
 func _on_mouse_exited() -> void:
-	highlight.visible = false
-	selected = false
+	mouse_in_card = false
+	if in_game:
+		cancel_card()
 
-func deactivate_card():
-	in_game = false
+func select_card():
+	print("6 - Select card (Card)")
+	selected = true
+	emit_signal("card_selected")
+
+func cancel_card():
+	print("2 - Cancel card (Card)")
+	selected = false
+	emit_signal("card_canceled")
 
 func highlight_on():
 	highlight.visible = true
-	selected = true
 
 func highlight_off():
 	highlight.visible = false
-	selected = false
+
+func deactivate_card():
+	cancel_card()
+	in_game = false
 
 func equals(other) -> bool:
 	if other == null or other is not PlayingCard:
